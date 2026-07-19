@@ -8,6 +8,9 @@ export interface EvaluatedJob extends LinkedInJob {
   requiredSkills: string[];
   workModality: 'Presencial' | 'Híbrido' | 'Remoto';
   refinedSummary: string;
+  hasActiveAgreement: boolean;
+  agreementCode: string | null;
+  agreementFaculty: string | null;
 }
 
 export class JobPipeline {
@@ -85,6 +88,9 @@ Devuelve estrictamente un objeto JSON con la siguiente estructura (no agregues b
           ? result.workModality 
           : 'Presencial',
         refinedSummary: result.refinedSummary || '',
+        hasActiveAgreement: false,
+        agreementCode: null,
+        agreementFaculty: null,
       };
     } catch (error: any) {
       console.error(`Error en evaluación de Gemini para la vacante ${job.id}: ${error.message}`);
@@ -118,6 +124,9 @@ Devuelve estrictamente un objeto JSON con la siguiente estructura (no agregues b
       requiredSkills: [],
       workModality: 'Presencial',
       refinedSummary: job.description ? job.description.slice(0, 150) + '...' : 'Sin descripción simplificada.',
+      hasActiveAgreement: false,
+      agreementCode: null,
+      agreementFaculty: null,
     };
   }
 }

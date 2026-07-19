@@ -3,6 +3,7 @@ import path from 'path';
 import { CONFIG, waitRandomDelay } from './config.js';
 import { LinkedInParser, LinkedInJob } from './parser.js';
 import { JobPipeline, EvaluatedJob } from './pipeline.js';
+import { DatabaseService } from './db.js';
 
 async function main() {
   console.log('==================================================');
@@ -14,6 +15,7 @@ async function main() {
 
   const parser = new LinkedInParser();
   const pipeline = new JobPipeline();
+  const db = new DatabaseService();
 
   const allEvaluatedJobs: EvaluatedJob[] = [];
 
@@ -51,10 +53,24 @@ async function main() {
 
         if (evaluatedJob) {
           console.log(`Clasificación terminada.`);
+
+          // Buscar si la empresa tiene convenio activo registrado en la base de datos de la UG
+          console.log('Verificando convenio activo en la base de datos de la UG...');
+          const agreement = await db.findActiveAgreement(job.company);
+          if (agreement) {
+            console.log(`Coincidencia de convenio encontrada: ${agreement.company_name} (${agreement.code})`);
+            evaluatedJob.hasActiveAgreement = true;
+            evaluatedJob.agreementCode = agreement.code;
+            evaluatedJob.agreementFaculty = agreement.faculty;
+          } else {
+            console.log('No se encontro ningun convenio activo para esta empresa.');
+          }
+
           console.log(`   - ¿Apta para pasantías?: ${evaluatedJob.isSuitableForInternship ? 'SI' : 'NO'}`);
           console.log(`   - Carreras compatibles: ${evaluatedJob.compatibleCareers.join(', ') || 'Ninguna'}`);
           console.log(`   - Modalidad: ${evaluatedJob.workModality}`);
           console.log(`   - Habilidades clave: ${evaluatedJob.requiredSkills.join(', ')}`);
+          console.log(`   - ¿Convenio Activo UG?: ${evaluatedJob.hasActiveAgreement ? `SI (${evaluatedJob.agreementCode})` : 'NO'}`);
           
           allEvaluatedJobs.push(evaluatedJob);
         }
@@ -74,6 +90,9 @@ async function main() {
     console.log('==================================================');
   } catch (saveError: any) {
     console.error(`Error al guardar el archivo de resultados: ${saveError.message}`);
+  } finally {
+    // Cerrar el pool de base de datos
+    await db.close();
   }
 }
 
