@@ -18,3 +18,7 @@ Thumbs.db
 .env.local
 *.env
 !.env.example
+
+# Local cache and temp files
+scraped_jobs.json
+*.html
