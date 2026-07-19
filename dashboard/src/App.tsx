@@ -170,28 +170,36 @@ export default function App() {
 
   // Helper to convert postedTime string to approximate hours ago for sorting
   const getPostedHoursAgo = (postedTime: string): number => {
-    const timeStr = (postedTime || '').toLowerCase();
+    const timeStr = (postedTime || '').trim();
     if (!timeStr) return 999999;
+
+    // Verificar si es un formato de fecha absoluto válido (ej. YYYY-MM-DD)
+    const timestamp = Date.parse(timeStr);
+    if (!isNaN(timestamp)) {
+      const diffMs = Date.now() - timestamp;
+      return diffMs / (1000 * 60 * 60);
+    }
     
-    const match = timeStr.match(/\d+/);
+    const timeStrLower = timeStr.toLowerCase();
+    const match = timeStrLower.match(/\d+/);
     const num = match ? parseInt(match[0], 10) : 1;
     
-    if (timeStr.includes('segundo') || timeStr.includes('second')) {
+    if (timeStrLower.includes('segundo') || timeStrLower.includes('second')) {
       return num / 3600;
     }
-    if (timeStr.includes('minuto') || timeStr.includes('minute')) {
+    if (timeStrLower.includes('minuto') || timeStrLower.includes('minute')) {
       return num / 60;
     }
-    if (timeStr.includes('hora') || timeStr.includes('hour')) {
+    if (timeStrLower.includes('hora') || timeStrLower.includes('hour')) {
       return num;
     }
-    if (timeStr.includes('día') || timeStr.includes('dia') || timeStr.includes('day')) {
+    if (timeStrLower.includes('día') || timeStrLower.includes('dia') || timeStrLower.includes('day')) {
       return num * 24;
     }
-    if (timeStr.includes('semana') || timeStr.includes('week')) {
+    if (timeStrLower.includes('semana') || timeStrLower.includes('week')) {
       return num * 24 * 7;
     }
-    if (timeStr.includes('mes') || timeStr.includes('month')) {
+    if (timeStrLower.includes('mes') || timeStrLower.includes('month')) {
       return num * 24 * 30;
     }
     
