@@ -20,13 +20,16 @@
   "author": "Steven Quijije (Jonta9029)",
   "license": "MIT",
   "dependencies": {
+    "@types/pg": "^8.20.0",
     "axios": "^1.7.2",
     "cheerio": "^1.0.0-rc.12",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "pg": "^8.22.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",
-    "typescript": "^5.5.2",
-    "tsx": "^4.16.2"
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.2"
   }
 }
