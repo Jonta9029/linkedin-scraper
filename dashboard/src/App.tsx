@@ -73,25 +73,98 @@ export default function App() {
   const [userEmail, setUserEmail] = useState('');
   const [generatedPitchText, setGeneratedPitchText] = useState('');
 
+  // Live Scraping states
+  const [liveSearchTerm, setLiveSearchTerm] = useState('');
+  const [liveLocationTerm, setLiveLocationTerm] = useState('Ecuador');
+  const [isScraping, setIsScraping] = useState(false);
+  const [scrapingMessage, setScrapingMessage] = useState('');
+
   // Fetch jobs data on mount
   useEffect(() => {
-    fetch('./scraped_jobs.json')
+    fetch('http://localhost:3001/api/jobs')
       .then((res) => {
-        if (!res.ok) {
-          throw new Error('No se pudo cargar el archivo de vacantes scraped_jobs.json');
-        }
+        if (!res.ok) throw new Error();
         return res.json();
       })
       .then((data: Job[]) => {
         setJobs(data);
         setLoading(false);
       })
-      .catch((err) => {
-        console.error(err);
-        setError(err.message);
-        setLoading(false);
+      .catch(() => {
+        console.log('Servidor backend local offline o inalcanzable. Cargando vacantes locales desde JSON estatico.');
+        fetch('./scraped_jobs.json')
+          .then((res) => {
+            if (!res.ok) {
+              throw new Error('No se pudo cargar el archivo de vacantes scraped_jobs.json');
+            }
+            return res.json();
+          })
+          .then((data: Job[]) => {
+            setJobs(data);
+            setLoading(false);
+          })
+          .catch((err) => {
+            console.error(err);
+            setError(err.message);
+            setLoading(false);
+          });
       });
   }, []);
+
+  // Handler for Live Scraping on LinkedIn
+  const handleLiveSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!liveSearchTerm.trim()) return;
+
+    setIsScraping(true);
+    setScrapingMessage('Iniciando búsqueda en vivo en LinkedIn...');
+
+    // Simulador de avance de carga para mayor interactividad en la interfaz gráfica
+    const messages = [
+      'Buscando ofertas publicadas en LinkedIn en vivo...',
+      'Evitando sistemas anti-bloqueo y cargando resultados...',
+      'Descargando descripciones detalladas de vacantes...',
+      'Clasificando requisitos, modalidad y aptitud con IA Gemini...',
+      'Verificando convenios institucionales activos con la base de datos UG...'
+    ];
+    let msgIdx = 0;
+    const interval = setInterval(() => {
+      if (msgIdx < messages.length - 1) {
+        msgIdx++;
+        setScrapingMessage(messages[msgIdx]);
+      }
+    }, 4500);
+
+    try {
+      const response = await fetch('http://localhost:3001/api/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          keyword: liveSearchTerm,
+          location: liveLocationTerm
+        })
+      });
+
+      clearInterval(interval);
+
+      if (!response.ok) {
+        throw new Error('Error en la respuesta del servidor del scraper.');
+      }
+
+      const updatedJobs = await response.json();
+      setJobs(updatedJobs);
+      setIsScraping(false);
+      setLiveSearchTerm('');
+      alert('Búsqueda completada con éxito. Se han integrado los nuevos resultados.');
+    } catch (err: any) {
+      clearInterval(interval);
+      console.error(err);
+      setIsScraping(false);
+      alert('No se pudo conectar con el backend. Asegúrate de iniciar el servidor con "npm run start-server" en la carpeta principal del scraper.');
+    }
+  };
 
   // Helper to extract province from location string
   const getProvince = (location: string): string => {
@@ -282,8 +355,48 @@ export default function App() {
         <div className="main-grid">
           {/* Sidebar / Filters */}
           <aside className="sidebar-panel">
+            <div className="panel-section" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '1.5rem', marginBottom: '1.5rem' }}>
+              <h4 className="panel-section-title" style={{ color: '#2563eb' }}>Búsqueda en Vivo (LinkedIn)</h4>
+              <form onSubmit={handleLiveSearch}>
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '0.25rem' }}>
+                    Cargo / Palabra Clave
+                  </label>
+                  <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Ej. Desarrollador C#"
+                    value={liveSearchTerm}
+                    onChange={(e) => setLiveSearchTerm(e.target.value)}
+                    disabled={isScraping}
+                  />
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '0.25rem' }}>
+                    Ubicación / País
+                  </label>
+                  <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Ej. Ecuador"
+                    value={liveLocationTerm}
+                    onChange={(e) => setLiveLocationTerm(e.target.value)}
+                    disabled={isScraping}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  disabled={isScraping || !liveSearchTerm.trim()}
+                >
+                  {isScraping ? 'Buscando...' : 'Buscar en LinkedIn'}
+                </button>
+              </form>
+            </div>
+
             <div className="panel-section">
-              <h4 className="panel-section-title">Buscar</h4>
+              <h4 className="panel-section-title">Buscar en Resultados</h4>
               <input
                 type="text"
                 className="search-input"
@@ -646,6 +759,32 @@ export default function App() {
                 </a>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {isScraping && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: '420px', textAlign: 'center', padding: '3rem 2rem' }}>
+            <div style={{ 
+              border: '4px solid #f3f3f3', 
+              borderTop: '4px solid #2563eb', 
+              borderRadius: '50%', 
+              width: '50px', 
+              height: '50px', 
+              animation: 'spin 1.5s linear infinite',
+              margin: '0 auto 1.5rem auto'
+            }} />
+            <style>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
+            <h3 style={{ marginBottom: '0.5rem' }}>Búsqueda en Curso</h3>
+            <p style={{ color: '#64748b', fontSize: '0.95rem', lineHeight: '1.4' }}>
+              {scrapingMessage}
+            </p>
           </div>
         </div>
       )}
