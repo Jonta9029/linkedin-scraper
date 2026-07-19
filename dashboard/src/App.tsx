@@ -52,6 +52,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [currentPage, setCurrentPage] = useState(1);
+
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [agreementFilter, setAgreementFilter] = useState<'all' | 'yes' | 'no'>('all');
@@ -166,6 +168,36 @@ export default function App() {
     }
   };
 
+  // Helper to convert postedTime string to approximate hours ago for sorting
+  const getPostedHoursAgo = (postedTime: string): number => {
+    const timeStr = (postedTime || '').toLowerCase();
+    if (!timeStr) return 999999;
+    
+    const match = timeStr.match(/\d+/);
+    const num = match ? parseInt(match[0], 10) : 1;
+    
+    if (timeStr.includes('segundo') || timeStr.includes('second')) {
+      return num / 3600;
+    }
+    if (timeStr.includes('minuto') || timeStr.includes('minute')) {
+      return num / 60;
+    }
+    if (timeStr.includes('hora') || timeStr.includes('hour')) {
+      return num;
+    }
+    if (timeStr.includes('día') || timeStr.includes('dia') || timeStr.includes('day')) {
+      return num * 24;
+    }
+    if (timeStr.includes('semana') || timeStr.includes('week')) {
+      return num * 24 * 7;
+    }
+    if (timeStr.includes('mes') || timeStr.includes('month')) {
+      return num * 24 * 30;
+    }
+    
+    return 999999;
+  };
+
   // Helper to extract province from location string
   const getProvince = (location: string): string => {
     const loc = location.toLowerCase();
@@ -238,9 +270,9 @@ export default function App() {
 
     // Filter by active agreement
     if (agreementFilter === 'yes') {
-      result = result.filter((job) => job.hasActiveAgreement);
+      result = result.filter((job) => job.hasActiveAgreement === true);
     } else if (agreementFilter === 'no') {
-      result = result.filter((job) => !job.hasActiveAgreement);
+      result = result.filter((job) => job.hasActiveAgreement !== true);
     }
 
     // Filter by job type (internship vs formal work)
@@ -262,16 +294,21 @@ export default function App() {
       result = result.filter((job) => job.isDirectPost);
     }
 
-    // Sort by Match Score (descending) if user provided matching inputs, otherwise keep original order
+    // Sort by Match Score (descending) first (if matching input active), and by Recency (most recent first = lowest hours ago) as tie-breaker
     const hasActiveMatchInput =
       (matchMode === 'interests' && selectedInterests.length > 0) ||
       (matchMode === 'cv' && userCvText.trim().length > 0);
 
-    if (hasActiveMatchInput) {
-      result.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
-    }
+    result.sort((a, b) => {
+      if (hasActiveMatchInput) {
+        const scoreDiff = (b.matchScore || 0) - (a.matchScore || 0);
+        if (scoreDiff !== 0) return scoreDiff;
+      }
+      return getPostedHoursAgo(a.postedTime) - getPostedHoursAgo(b.postedTime);
+    });
 
     setFilteredJobs(result);
+    setCurrentPage(1); // Reset to page 1 on filter change
   }, [jobs, searchTerm, agreementFilter, jobTypeFilter, provinceFilter, sourceFilter, userCvText, selectedInterests, matchMode]);
 
   // Generate customized pitch cover letter
@@ -325,6 +362,13 @@ export default function App() {
       window.location.href = `mailto:${pitchJob.contactEmail}?subject=${subject}&body=${body}`;
     }
   };
+
+  const ITEMS_PER_PAGE = 10;
+  const totalPages = Math.ceil(filteredJobs.length / ITEMS_PER_PAGE) || 1;
+  const paginatedJobs = filteredJobs.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   return (
     <div className="app-container">
@@ -532,96 +576,127 @@ export default function App() {
                 <p className="empty-state-text">Intenta ajustar los filtros de búsqueda o seleccionar otros intereses.</p>
               </div>
             ) : (
-              filteredJobs.map((job) => {
-                const showScore = 
-                  (matchMode === 'interests' && selectedInterests.length > 0) ||
-                  (matchMode === 'cv' && userCvText.trim().length > 0);
+              <>
+                {paginatedJobs.map((job) => {
+                  const showScore = 
+                    (matchMode === 'interests' && selectedInterests.length > 0) ||
+                    (matchMode === 'cv' && userCvText.trim().length > 0);
 
-                return (
-                  <article key={job.id} className="job-card">
-                    <div className="job-card-header">
-                      <div className="job-title-container">
-                        <h3 className="job-title">{job.title}</h3>
-                        <div className="job-company">
-                          {job.company}
+                  return (
+                    <article key={job.id} className="job-card">
+                      <div className="job-card-header">
+                        <div className="job-title-container">
+                          <h3 className="job-title">{job.title}</h3>
+                          <div className="job-company">
+                            {job.company}
+                          </div>
                         </div>
+
+                        {showScore && job.matchScore !== undefined && job.matchScore > 0 && (
+                          <div className="match-score-badge">
+                            {job.matchScore}% Match
+                          </div>
+                        )}
                       </div>
 
-                      {showScore && job.matchScore !== undefined && job.matchScore > 0 && (
-                        <div className="match-score-badge">
-                          {job.matchScore}% Match
+                      {/* Badges */}
+                      <div className="badge-group">
+                        <span className={`badge ${job.hasActiveAgreement ? 'badge-convenio-active' : 'badge-convenio-inactive'}`}>
+                          {job.hasActiveAgreement ? `Convenio Activo UG: Sí` : 'Sin Convenio UG'}
+                        </span>
+                        <span className={`badge ${job.isSuitableForInternship ? 'badge-internship' : 'badge-formal'}`}>
+                          {job.isSuitableForInternship ? 'Pasantía' : 'Trabajo Formal'}
+                        </span>
+                        <span className="badge badge-modality">{job.workModality}</span>
+                        {job.isDirectPost && (
+                          <span className="badge badge-recruiter-post">Publicación de Reclutador</span>
+                        )}
+                      </div>
+
+                      {/* Recruiter specific info */}
+                      {job.isDirectPost && job.recruiterName && (
+                        <div className="recruiter-profile-section">
+                          <div className="recruiter-avatar-mock">
+                            {job.recruiterName.charAt(0)}
+                          </div>
+                          <div className="recruiter-info-text">
+                            <h5>{job.recruiterName}</h5>
+                            <p>{job.recruiterTitle}</p>
+                          </div>
                         </div>
                       )}
-                    </div>
 
-                    {/* Badges */}
-                    <div className="badge-group">
-                      <span className={`badge ${job.hasActiveAgreement ? 'badge-convenio-active' : 'badge-convenio-inactive'}`}>
-                        {job.hasActiveAgreement ? `Convenio Activo UG: Sí` : 'Sin Convenio UG'}
-                      </span>
-                      <span className={`badge ${job.isSuitableForInternship ? 'badge-internship' : 'badge-formal'}`}>
-                        {job.isSuitableForInternship ? 'Pasantía' : 'Trabajo Formal'}
-                      </span>
-                      <span className="badge badge-modality">{job.workModality}</span>
-                      {job.isDirectPost && (
-                        <span className="badge badge-recruiter-post">Publicación de Reclutador</span>
+                      <p className="job-summary">
+                        {job.refinedSummary || job.description}
+                      </p>
+
+                      {/* Skills Tags */}
+                      {job.requiredSkills.length > 0 && (
+                        <div className="skills-list">
+                          {job.requiredSkills.map((skill) => (
+                            <span key={skill} className="skill-tag">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
                       )}
-                    </div>
 
-                    {/* Recruiter specific info */}
-                    {job.isDirectPost && job.recruiterName && (
-                      <div className="recruiter-profile-section">
-                        <div className="recruiter-avatar-mock">
-                          {job.recruiterName.charAt(0)}
+                      <div className="job-card-footer">
+                        <div className="job-meta-location">
+                          <span>{job.location}</span>
+                          <span style={{ color: '#cbd5e1' }}>|</span>
+                          <span>{job.postedTime}</span>
                         </div>
-                        <div className="recruiter-info-text">
-                          <h5>{job.recruiterName}</h5>
-                          <p>{job.recruiterTitle}</p>
+
+                        <div className="card-actions">
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => setActiveJob(job)}
+                          >
+                            Ver Detalles
+                          </button>
+                          
+                          <button
+                            className="btn btn-primary"
+                            onClick={() => setPitchJob(job)}
+                          >
+                            Generar Postulación
+                          </button>
                         </div>
                       </div>
-                    )}
+                    </article>
+                  );
+                })}
 
-                    <p className="job-summary">
-                      {job.refinedSummary || job.description}
-                    </p>
-
-                    {/* Skills Tags */}
-                    {job.requiredSkills.length > 0 && (
-                      <div className="skills-list">
-                        {job.requiredSkills.map((skill) => (
-                          <span key={skill} className="skill-tag">
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="job-card-footer">
-                      <div className="job-meta-location">
-                        <span>{job.location}</span>
-                        <span style={{ color: '#cbd5e1' }}>|</span>
-                        <span>{job.postedTime}</span>
-                      </div>
-
-                      <div className="card-actions">
-                        <button
-                          className="btn btn-secondary"
-                          onClick={() => setActiveJob(job)}
-                        >
-                          Ver Detalles
-                        </button>
-                        
-                        <button
-                          className="btn btn-primary"
-                          onClick={() => setPitchJob(job)}
-                        >
-                          Generar Postulación
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })
+                {/* Pagination Nav Controls */}
+                {totalPages > 1 && (
+                  <div className="pagination-container">
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        setCurrentPage((prev) => Math.max(prev - 1, 1));
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      disabled={currentPage === 1}
+                    >
+                      Anterior
+                    </button>
+                    <span className="page-indicator">
+                      Página {currentPage} de {totalPages}
+                    </span>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      disabled={currentPage === totalPages}
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </main>
         </div>
