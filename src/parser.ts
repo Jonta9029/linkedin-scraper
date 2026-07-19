@@ -24,7 +24,7 @@ export class LinkedInParser {
   async fetchJobs(keyword: string, location: string, start: number = 0): Promise<LinkedInJob[]> {
     const url = `${this.baseUrl}?keywords=${encodeURIComponent(keyword)}&location=${encodeURIComponent(location)}&start=${start}`;
     
-    console.log(`🌐 Buscando en LinkedIn: "${keyword}" en "${location}" (Página inicio: ${start})...`);
+    console.log(`Buscando en LinkedIn: "${keyword}" en "${location}" (Página inicio: ${start})...`);
 
     const headers = {
       'User-Agent': getRandomUserAgent(),
@@ -69,12 +69,12 @@ export class LinkedInParser {
         }
       });
 
-      console.log(`✨ Se encontraron ${jobs.length} vacantes preliminares.`);
+      console.log(`Se encontraron ${jobs.length} vacantes preliminares.`);
       return jobs;
     } catch (error: any) {
-      console.error(`❌ Error al obtener listado de LinkedIn: ${error.message}`);
+      console.error(`Error al obtener listado de LinkedIn: ${error.message}`);
       if (error.response?.status === 429) {
-        console.warn('⚠️ Se ha detectado Rate Limit (429) de LinkedIn.');
+        console.warn('Se ha detectado Rate Limit (429) de LinkedIn.');
       }
       return [];
     }
@@ -105,7 +105,7 @@ export class LinkedInParser {
         const $ = cheerio.load(fallbackResponse.data);
         return $('.show-more-less-html__markup').text().trim() || 'No se pudo extraer la descripción.';
       } catch (fallbackError: any) {
-        console.error(`❌ Error al extraer descripción del trabajo ${jobId}: ${fallbackError.message}`);
+        console.error(`Error al extraer descripción del trabajo ${jobId}: ${fallbackError.message}`);
         return '';
       }
     }

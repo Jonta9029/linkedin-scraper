@@ -18,12 +18,12 @@ export class JobPipeline {
    */
   async evaluateJobWithAI(job: LinkedInJob): Promise<EvaluatedJob | null> {
     if (!CONFIG.GEMINI_API_KEY) {
-      console.warn('⚠️ No se ha configurado GEMINI_API_KEY. Saltando clasificación por IA.');
+      console.warn('No se ha configurado GEMINI_API_KEY. Saltando clasificación por IA.');
       return this.fallbackEvaluation(job);
     }
 
     if (!job.description) {
-      console.warn(`⚠️ Vacante ${job.id} no tiene descripción. Saltando.`);
+      console.warn(`Vacante ${job.id} no tiene descripción. Saltando.`);
       return null;
     }
 
@@ -87,7 +87,7 @@ Devuelve estrictamente un objeto JSON con la siguiente estructura (no agregues b
         refinedSummary: result.refinedSummary || '',
       };
     } catch (error: any) {
-      console.error(`❌ Error en evaluación de Gemini para la vacante ${job.id}: ${error.message}`);
+      console.error(`Error en evaluación de Gemini para la vacante ${job.id}: ${error.message}`);
       return this.fallbackEvaluation(job);
     }
   }

@@ -36,6 +36,6 @@ export function getRandomUserAgent(): string {
  */
 export function waitRandomDelay(): Promise<void> {
   const ms = Math.floor(Math.random() * (CONFIG.DELAY_MAX - CONFIG.DELAY_MIN + 1)) + CONFIG.DELAY_MIN;
-  console.log(`⏳ Esperando ${ms / 1000} segundos antes del siguiente paso...`);
+  console.log(`Esperando ${ms / 1000} segundos antes del siguiente paso...`);
   return new Promise(resolve => setTimeout(resolve, ms));
 }
