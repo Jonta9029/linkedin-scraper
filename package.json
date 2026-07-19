@@ -1,0 +1,32 @@
+{
+  "name": "linkedin-scraper",
+  "version": "1.0.0",
+  "description": "Un micro-scraper orgánico y gratuito para buscar ofertas de empleo junior y pasantías en LinkedIn sin pagar API, procesado con Inteligencia Artificial (Gemini).",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "scraper",
+    "linkedin",
+    "jobs",
+    "gemini",
+    "ai",
+    "typescript",
+    "crawler"
+  ],
+  "author": "Steven Quijije (Jonta9029)",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "cheerio": "^1.0.0-rc.12",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "typescript": "^5.5.2",
+    "tsx": "^4.16.2"
+  }
+}
